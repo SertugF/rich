@@ -384,7 +384,7 @@ def test_capture_and_record(capsys):
     recorder = Console(record=True)
     recorder.print("ABC")
 
-    with recorder.capture() as capture:
+    with recorder.capture(echo=False) as capture:
         recorder.print("Hello")
 
     assert capture.get() == "Hello\n"
@@ -395,6 +395,26 @@ def test_capture_and_record(capsys):
     assert recorded_text == "ABC\nHello\n"
     assert capture.get() == "Hello\n"
     assert out == "ABC\n"
+
+
+def test_capture_and_record_multiple(capsys):
+    recorder = Console(record=True)
+
+    with recorder.capture(echo=False) as capture:
+        recorder.print("Hello")
+        recorder.print("World")
+
+    assert capture.get() == "Hello\nWorld\n"
+
+    with recorder.capture(echo=True) as capture:
+        recorder.print("Foo")
+        recorder.print("Bar")
+
+    assert capture.get() == "Foo\nBar\n"
+
+    out, err = capsys.readouterr()
+
+    assert out == "Foo\nBar\n"
 
 
 def test_input(monkeypatch, capsys):
@@ -436,19 +456,22 @@ def test_justify_none():
 
 
 def test_justify_left():
-    console = Console(file=io.StringIO(), force_terminal=True, width=20, _environ={})
+    console = Console(file=io.StringIO(), force_terminal=True,
+                      width=20, _environ={})
     console.print("FOO", justify="left")
     assert console.file.getvalue() == "FOO                 \n"
 
 
 def test_justify_center():
-    console = Console(file=io.StringIO(), force_terminal=True, width=20, _environ={})
+    console = Console(file=io.StringIO(), force_terminal=True,
+                      width=20, _environ={})
     console.print("FOO", justify="center")
     assert console.file.getvalue() == "        FOO         \n"
 
 
 def test_justify_right():
-    console = Console(file=io.StringIO(), force_terminal=True, width=20, _environ={})
+    console = Console(file=io.StringIO(), force_terminal=True,
+                      width=20, _environ={})
     console.print("FOO", justify="right")
     assert console.file.getvalue() == "                 FOO\n"
 
@@ -526,7 +549,8 @@ def test_export_text():
 
 def test_export_html():
     console = Console(record=True, width=100)
-    console.print("[b]foo <script> 'test' [link=https://example.org]Click[/link]")
+    console.print(
+        "[b]foo <script> 'test' [link=https://example.org]Click[/link]")
     html = console.export_html()
     expected = '<!DOCTYPE html>\n<head>\n<meta charset="UTF-8">\n<style>\n.r1 {font-weight: bold}\n.r2 {color: #ff00ff; text-decoration-color: #ff00ff; font-weight: bold}\n.r3 {color: #008000; text-decoration-color: #008000; font-weight: bold}\nbody {\n    color: #000000;\n    background-color: #ffffff;\n}\n</style>\n</head>\n<html>\n<body>\n    <pre style="font-family:Menlo,\'DejaVu Sans Mono\',consolas,\'Courier New\',monospace">\n        <code><span class="r1">foo &lt;</span><span class="r2">script</span><span class="r1">&gt; </span><span class="r3">&#x27;test&#x27;</span><span class="r1"> </span><a class="r1" href="https://example.org">Click</a>\n</code>\n    </pre>\n</body>\n</html>\n'
     assert html == expected
@@ -770,10 +794,12 @@ def test_columns_env():
     console = Console(_environ={"COLUMNS": "314"}, legacy_windows=False)
     assert console.width == 314
     # width take precedence
-    console = Console(width=40, _environ={"COLUMNS": "314"}, legacy_windows=False)
+    console = Console(width=40, _environ={
+                      "COLUMNS": "314"}, legacy_windows=False)
     assert console.width == 40
     # Should not fail
-    console = Console(width=40, _environ={"COLUMNS": "broken"}, legacy_windows=False)
+    console = Console(width=40, _environ={
+                      "COLUMNS": "broken"}, legacy_windows=False)
 
 
 def test_lines_env():
@@ -894,7 +920,8 @@ def test_is_terminal_broken_file():
 
 @pytest.mark.skipif(sys.platform == "win32", reason="not relevant on Windows")
 def test_detect_color_system():
-    console = Console(_environ={"TERM": "rxvt-unicode-256color"}, force_terminal=True)
+    console = Console(
+        _environ={"TERM": "rxvt-unicode-256color"}, force_terminal=True)
     assert console._detect_color_system() == ColorSystem.EIGHT_BIT
 
 

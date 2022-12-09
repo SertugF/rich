@@ -327,9 +327,10 @@ class Capture:
         console (Console): A console instance to capture output.
     """
 
-    def __init__(self, console: "Console") -> None:
+    def __init__(self, console: "Console", echo: bool = True) -> None:
         self._console = console
         self._result: Optional[str] = None
+        self.echo = echo
 
     def __enter__(self) -> "Capture":
         self._console.begin_capture()
@@ -342,6 +343,10 @@ class Capture:
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._result = self._console.end_capture()
+        if self.echo:
+            # print to the original console
+            self._console.print(self._result, end="")
+        self._console = None
 
     def get(self) -> str:
         """Get the result of the capture."""
@@ -837,7 +842,8 @@ class Console:
         """
         with self._lock:
             if self._live is not None:
-                raise errors.LiveError("Only one live display may be active at once")
+                raise errors.LiveError(
+                    "Only one live display may be active at once")
             self._live = live
 
     def clear_live(self) -> None:
@@ -949,7 +955,8 @@ class Console:
             # Return False for Idle which claims to be a tty but can't handle ansi codes
             return False
 
-        isatty: Optional[Callable[[], bool]] = getattr(self.file, "isatty", None)
+        isatty: Optional[Callable[[], bool]] = getattr(
+            self.file, "isatty", None)
         try:
             return False if isatty is None else isatty()
         except ValueError:
@@ -1080,9 +1087,12 @@ class Console:
         """Play a 'bell' sound (if supported by the terminal)."""
         self.control(Control.bell())
 
-    def capture(self) -> Capture:
+    def capture(self, echo: bool = True) -> Capture:
         """A context manager to *capture* the result of print() or log() in a string,
         rather than writing it to the console.
+
+         Args:
+            echo (bool, optional): Echos captured string to terminal. Defaults to True.
 
         Example:
             >>> from rich.console import Console
@@ -1092,9 +1102,10 @@ class Console:
             >>> print(capture.get())
 
         Returns:
-            Capture: Context manager with disables writing to the terminal.
+            Capture: Context manager depending on echo argument disables writing to the terminal.
         """
-        capture = Capture(self)
+
+        capture = Capture(self, echo=echo)
         return capture
 
     def pager(
@@ -1275,7 +1286,8 @@ class Console:
         Returns:
             Measurement: A measurement of the renderable.
         """
-        measurement = Measurement.get(self, options or self.options, renderable)
+        measurement = Measurement.get(
+            self, options or self.options, renderable)
         return measurement
 
     def render(
@@ -1303,7 +1315,8 @@ class Console:
 
         renderable = rich_cast(renderable)
         if hasattr(renderable, "__rich_console__") and not isclass(renderable):
-            render_iterable = renderable.__rich_console__(self, _options)  # type: ignore[union-attr]
+            render_iterable = renderable.__rich_console__(
+                self, _options)  # type: ignore[union-attr]
         elif isinstance(renderable, str):
             text_renderable = self.render_str(
                 renderable, highlight=_options.highlight, markup=_options.markup
@@ -1380,7 +1393,8 @@ class Console:
                 extra_lines = render_options.height - len(lines)
                 if extra_lines > 0:
                     pad_line = [
-                        [Segment(" " * render_options.max_width, style), Segment("\n")]
+                        [Segment(" " * render_options.max_width,
+                                 style), Segment("\n")]
                         if new_lines
                         else [Segment(" " * render_options.max_width, style)]
                     ]
@@ -1418,7 +1432,8 @@ class Console:
         """
         emoji_enabled = emoji or (emoji is None and self._emoji)
         markup_enabled = markup or (markup is None and self._markup)
-        highlight_enabled = highlight or (highlight is None and self._highlight)
+        highlight_enabled = highlight or (
+            highlight is None and self._highlight)
 
         if markup_enabled:
             rich_text = render_markup(
@@ -1439,7 +1454,8 @@ class Console:
                 style=style,
             )
 
-        _highlighter = (highlighter or self.highlighter) if highlight_enabled else None
+        _highlighter = (
+            highlighter or self.highlighter) if highlight_enabled else None
         if _highlighter is not None:
             highlight_text = _highlighter(str(rich_text))
             highlight_text.copy_styles(rich_text)
@@ -1548,7 +1564,8 @@ class Console:
 
         if self.style is not None:
             style = self.get_style(self.style)
-            renderables = [Styled(renderable, style) for renderable in renderables]
+            renderables = [Styled(renderable, style)
+                           for renderable in renderables]
 
         return renderables
 
@@ -1570,7 +1587,8 @@ class Console:
         """
         from .rule import Rule
 
-        rule = Rule(title=title, characters=characters, style=style, align=align)
+        rule = Rule(title=title, characters=characters,
+                    style=style, align=align)
         self.print(rule)
 
     def control(self, *control: Control) -> None:
@@ -1696,7 +1714,8 @@ class Console:
                 for renderable in renderables:
                     extend(
                         Segment.apply_style(
-                            render(renderable, render_options), self.get_style(style)
+                            render(renderable, render_options), self.get_style(
+                                style)
                         )
                     )
             if new_line_start:
@@ -1795,7 +1814,8 @@ class Console:
 
         """
         if not self.is_alt_screen:
-            raise errors.NoAltScreen("Alt screen must be enabled to call update_screen")
+            raise errors.NoAltScreen(
+                "Alt screen must be enabled to call update_screen")
         render_options = options or self.options
         if region is None:
             x = y = 0
@@ -1823,7 +1843,8 @@ class Console:
             errors.NoAltScreen: If the Console isn't in alt screen mode.
         """
         if not self.is_alt_screen:
-            raise errors.NoAltScreen("Alt screen must be enabled to call update_screen")
+            raise errors.NoAltScreen(
+                "Alt screen must be enabled to call update_screen")
         screen_update = ScreenUpdate(lines, x, y)
         segments = self.render(screen_update)
         self._buffer.extend(segments)
@@ -1944,10 +1965,12 @@ class Console:
                 highlight=highlight,
             )
             if style is not None:
-                renderables = [Styled(renderable, style) for renderable in renderables]
+                renderables = [Styled(renderable, style)
+                               for renderable in renderables]
 
             filename, line_no, locals = self._caller_frame_info(_stack_offset)
-            link_path = None if filename.startswith("<") else os.path.abspath(filename)
+            link_path = None if filename.startswith(
+                "<") else os.path.abspath(filename)
             path = filename.rpartition(os.sep)[-1]
             if log_locals:
                 locals_map = {
@@ -2020,7 +2043,8 @@ class Console:
                             if self.no_color and self._color_system:
                                 buffer = list(Segment.remove_color(buffer))
 
-                            legacy_windows_render(buffer, LegacyWindowsTerm(self.file))
+                            legacy_windows_render(
+                                buffer, LegacyWindowsTerm(self.file))
                         else:
                             # Either a non-std stream on legacy Windows, or modern Windows.
                             text = self._render_buffer(self._buffer[:])
